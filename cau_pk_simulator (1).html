@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PK Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.1/math.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --paper:#f6f4ee; --surface:#fffdf8; --ink:#1b1a16; --muted:#6f6a5f;
+  --line:#e2ddd1; --line2:#cfc9ba; --accent:#0f6e56; --accent2:#1d9e75;
+  --danger:#a32d2d; --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --paper:#16150f; --surface:#1f1d16; --ink:#ece8dd; --muted:#9b9586;
+    --line:#33301f; --line2:#46422f; --accent:#5dcaa5; --accent2:#1d9e75; --danger:#f09595; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.6;
+  -webkit-font-smoothing:antialiased;padding:28px 20px 48px}
+.wrap{max-width:1100px;margin:0 auto}
+header{border-bottom:1px solid var(--line2);padding-bottom:16px;margin-bottom:22px}
+h1{font-family:"IBM Plex Serif",serif;font-weight:600;font-size:30px;margin:0;letter-spacing:-0.01em}
+h1 .acc{color:var(--accent)}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:22px}
+@media(max-width:840px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.lab{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 8px}
+.preset{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+select,input,textarea,button{font-family:inherit;color:var(--ink)}
+select{border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13px;background:var(--surface)}
+textarea{width:100%;min-height:280px;resize:vertical;border:1px solid var(--line2);border-radius:8px;
+  padding:12px 14px;font-family:"IBM Plex Mono",monospace;font-size:13px;line-height:1.65;background:var(--paper)}
+textarea:focus,select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.ctl{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0 10px}
+.fld{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
+.fld input[type=number]{width:74px;border:1px solid var(--line2);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--surface)}
+button{cursor:pointer;border:1px solid var(--line2);border-radius:8px;padding:8px 16px;font-size:13px;
+  font-weight:500;background:var(--surface);transition:.12s background,.12s border-color}
+button:hover{border-color:var(--accent)}
+button:active{transform:translateY(1px)}
+button.run{background:var(--accent);border-color:var(--accent);color:#fff}
+button.run:hover{background:var(--accent2);border-color:var(--accent2)}
+button.on{border-color:var(--accent);color:var(--accent)}
+.stat{font-size:13px;min-height:20px;margin:6px 0 10px;color:var(--muted)}
+.stat.err{color:var(--danger)} .stat.ok{color:var(--accent)}
+.plotbox{position:relative;height:380px}
+.rightcol{display:flex;flex-direction:column;gap:22px;min-width:0}
+.sliders-panel{margin-top:0}
+#sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.scell{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--paper)}
+.sname{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;margin-bottom:6px}
+.srow{display:flex;align-items:center;gap:10px}
+.srow input[type=range]{flex:1;accent-color:var(--accent);width:100%}
+.sval{font-family:"IBM Plex Mono",monospace;font-size:13px;min-width:48px;text-align:right;color:var(--accent)}
+.snum{width:72px;border:1px solid var(--line2);border-radius:8px;padding:5px 7px;font-family:"IBM Plex Mono",monospace;font-size:13px;text-align:right;background:var(--surface);color:var(--accent)}
+.snum:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.help{margin-top:18px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+.help code{font-family:"IBM Plex Mono",monospace;background:var(--paper);border:1px solid var(--line);
+  border-radius:5px;padding:1px 5px;font-size:12px;color:var(--ink)}
+.help b{color:var(--ink);font-weight:600}
+.examples-panel{margin-top:22px}
+pre.code{background:var(--paper);border:1px solid var(--line2);border-radius:8px;padding:12px 14px;
+  font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.6;white-space:pre-wrap;
+  overflow:auto;max-height:300px;margin:10px 0 0;color:var(--ink)}
+.axisctl{display:flex;flex-direction:column;gap:8px;margin:0 0 10px}
+.axisrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.atag{font-size:12px;color:var(--muted);min-width:48px}
+.axisctl input{border:1px solid var(--line2);border-radius:8px;padding:5px 8px;font-size:13px;background:var(--surface);color:var(--ink)}
+.axisctl input.aname{width:150px}
+.axisctl input[type=number]{width:72px}
+.axisctl input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+footer{margin-top:30px;font-size:12px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="acc">PK</span> Simulator</h1>
+    <div class="sub">흑석동 Madonna: 학생들을 위한 학습용 PK 시뮬레이션 프로그램입니다</div>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <p class="lab">모델 (미분방정식)</p>
+      <textarea id="eq" spellcheck="false" placeholder="여기에 모델을 직접 입력하거나, 아래 '예제'에서 복사해 붙여넣으세요. ▶ Run 으로 실행합니다."></textarea>
+
+      <div class="ctl">
+        <span class="fld">시뮬레이션 시간 <input type="number" id="tend" value="72" min="1" step="1"> h</span>
+        <span class="fld">스텝 dt <input type="number" id="dt" value="0.05" min="0.001" step="0.01"> h</span>
+      </div>
+      <div class="ctl">
+        <button class="run" id="run">▶ Run (적용)</button>
+        <button id="snap">＋ 고정</button>
+        <button id="logb">로그축</button>
+        <button id="clr">고정 지우기</button>
+      </div>
+      <div class="stat" id="stat"></div>
+
+      <div class="help">
+        <b>문법</b> — <code>name = 값 [min:max]</code> 파라미터(슬라이더 자동 생성, 범위·간격은 <code>[1:12:1]</code> 처럼 지정) ·
+        <code>name = 식</code> 계산값(슬라이더 없음) · <code>init X = 식</code> 초기값 · <code>d/dt(X) = 식</code> 미분식 ·
+        <code>plot 식</code> 출력. <br>
+        <b>다회투여</b> — <code>dose X = 용량 every tau for ndoses</code> (또는 <code>... at 0,12,24</code>).
+        조건식 <code>t &lt; 2 ? a : b</code>, <code>exp</code> 등 사용 가능. 주석은 <code>;</code>.<br>
+        슬라이더 옆 칸에 값을 직접 입력하면 정확히 지정됩니다. 증가 폭을 정하려면 <code>[min:max:step]</code> (예: <code>V = 30 [5:100:5]</code>).<br>
+        <b>오른쪽 Y축</b> — <code>plot Agut @right</code> 처럼 곡선을 오른쪽 축에 배치. 축 이름은 그래프 위 입력칸 또는 <code>ylabel</code>/<code>ylabelR</code> 로 지정.
+      </div>
+    </div>
+
+    <div class="rightcol">
+      <div class="panel">
+        <p class="lab">시뮬레이션 결과</p>
+        <div class="axisctl">
+          <div class="axisrow">
+            <span class="atag">왼쪽 Y</span>
+            <input type="text" id="ylab" value="농도 (mg/L)" class="aname">
+            <input type="number" id="ymin" placeholder="min" step="any">
+            <input type="number" id="ymax" placeholder="max" step="any">
+          </div>
+          <div class="axisrow">
+            <span class="atag">오른쪽 Y</span>
+            <input type="text" id="ylabR" value="" class="aname">
+            <input type="number" id="y2min" placeholder="min" step="any">
+            <input type="number" id="y2max" placeholder="max" step="any">
+          </div>
+        </div>
+        <div class="plotbox"><canvas id="oc"></canvas></div>
+      </div>
+      <div class="panel sliders-panel">
+        <p class="lab">파라미터 — 드래그하면 실시간으로 다시 계산됩니다</p>
+        <div id="sliders"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel examples-panel">
+    <p class="lab">예제 — 복사해서 편집창에 붙여넣기</p>
+    <div class="preset">
+      <label class="fld" style="color:var(--ink)">모델</label>
+      <select id="exsel"></select>
+      <button id="copyex">복사</button>
+      <span id="copymsg" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <pre id="expre" class="code"></pre>
+  </div>
+
+  <footer>RK4 fixed-step integrator · mathjs + Chart.js · Chung-Ang University · 단일 HTML 파일</footer>
+</div>
+
+<script>
+(function(){
+  var presets={
+    oral1_single:"; 경구 1구획 단회투여\nka = 1.0 [0:5]\nke = 0.2 [0:2]\nV  = 30 [5:100]\nDose = 100 [10:500]\nF = 0.9 [0:1]\n\ninit Agut = F*Dose\ninit Ac = 0\n\nd/dt(Agut) = -ka*Agut\nd/dt(Ac)   = ka*Agut - ke*Ac\n\nylabel 농도 Ac/V (mg/L)\nylabelR 흡수부위 잔여량 Agut (mg)\nplot Ac/V\nplot Agut @right",
+    iv1_single:"; IV bolus 1구획 단회투여\nke = 0.2 [0:2]\nV  = 30 [5:100]\nDose = 100 [10:500]\n\ninit Ac = Dose\n\nd/dt(Ac) = -ke*Ac\n\nplot Ac/V",
+    oral1:"; 경구 1구획 + 다회투여\nka = 1.0 [0:5]\nke = 0.2 [0:2]\nV  = 30 [5:100]\nDose = 100 [10:500]\nF = 0.9 [0:1]\ntau = 12 [2:48]\nndoses = 4 [1:12:1]\n\ninit Agut = 0\ninit Ac = 0\n\nd/dt(Agut) = -ka*Agut\nd/dt(Ac)   = ka*Agut - ke*Ac\n\ndose Agut = F*Dose every tau for ndoses\n\nplot Ac/V",
+    iv1:"; IV bolus 1구획 + 다회투여\nke = 0.2 [0:2]\nV  = 30 [5:100]\nDose = 100 [10:500]\ntau = 8 [2:48]\nndoses = 5 [1:12:1]\n\ninit Ac = 0\n\nd/dt(Ac) = -ke*Ac\n\ndose Ac = Dose every tau for ndoses\n\nplot Ac/V",
+    iv2:"; IV bolus 2구획 + 다회투여\nCL = 6 [0.5:30]\nV1 = 30 [5:100]\nQ  = 4 [0.5:30]\nV2 = 50 [5:200]\nDose = 100 [10:500]\ntau = 12 [2:48]\nndoses = 4 [1:12:1]\n\nk10 = CL/V1\nk12 = Q/V1\nk21 = Q/V2\n\ninit Ac = 0\ninit Ap = 0\n\nd/dt(Ac) = -(k10+k12)*Ac + k21*Ap\nd/dt(Ap) = k12*Ac - k21*Ap\n\ndose Ac = Dose every tau for ndoses\n\nplot Ac/V1",
+    mm:"; Michaelis-Menten 소거 + 다회투여\nka = 1.0 [0:5]\nVmax = 8 [0:30]\nKm = 5 [0.5:50]\nV  = 30 [5:100]\nDose = 100 [10:500]\nF = 0.9 [0:1]\ntau = 12 [2:48]\nndoses = 4 [1:12:1]\n\ninit Agut = 0\ninit Ac = 0\n\nd/dt(Agut) = -ka*Agut\nd/dt(Ac)   = ka*Agut - Vmax*Ac/(Km*V + Ac)\n\ndose Agut = F*Dose every tau for ndoses\n\nplot Ac/V",
+    inf:"; 영차 정맥주입 (Tinf 까지 일정속도)\nDose = 100 [10:500]\nTinf = 2 [0.25:12]\nke = 0.2 [0:2]\nV  = 30 [5:100]\nRin = Dose/Tinf\n\ninit Ac = 0\n\nd/dt(Ac) = (t < Tinf ? Rin : 0) - ke*Ac\n\nplot Ac/V"
+  };
+
+  var chart=null, logScale=false, currentModel=null, liveParams={};
+  var liveDS=[], heldDS=[], snapCount=0;
+  var livePalette=["#1d9e75","#0c447c","#993556"];
+  var snapPalette=["#534ab7","#d85a30","#185fa5","#ba7517","#993556","#3b6d11","#0c447c"];
+  var NUM=/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/;
+
+  function fmt(v){
+    if(!isFinite(v)) return String(v);
+    if(Math.abs(v)>=100) return v.toFixed(0);
+    if(Math.abs(v)>=1) return String(Math.round(v*100)/100);
+    return String(Math.round(v*1000)/1000);
+  }
+  function niceStep(range){
+    if(!(range>0)) return 1;
+    var raw=range/100, mag=Math.pow(10,Math.floor(Math.log10(raw))), n=raw/mag;
+    var s=n<1.5?1:n<3.5?2:n<7.5?5:10;
+    return s*mag;
+  }
+
+  function parse(src){
+    var params=[],inits={},odes=[],plots=[],doses=[],ylabel=null,ylabelR=null,m;
+    src.split("\n").forEach(function(raw){
+      var line=raw.split(";")[0].split("#")[0].trim();
+      if(!line) return;
+      if(m=line.match(/^d\/dt\(\s*([A-Za-z_]\w*)\s*\)\s*=\s*(.+)$/)){odes.push({name:m[1],rhs:m[2]});return;}
+      if(m=line.match(/^init\s+([A-Za-z_]\w*)\s*=\s*(.+)$/)){inits[m[1]]=m[2];return;}
+      if((m=line.match(/^ylabelR\s+(.+)$/i))||(m=line.match(/^ylabel2\s+(.+)$/i))){ ylabelR=m[1].trim(); return; }
+      if(m=line.match(/^ylabel\s+(.+)$/i)){ ylabel=m[1].trim(); return; }
+      if(m=line.match(/^plot\s+(.+)$/i)){ var pt=m[1].trim(), ax="left"; var rm=pt.match(/^(.*?)\s*@(right|r)\s*$/i); if(rm){ pt=rm[1].trim(); ax="right"; } plots.push({expr:pt,axis:ax}); return; }
+      if(m=line.match(/^dose\s+([A-Za-z_]\w*)\s*=\s*(.+?)\s+every\s+(.+?)\s+for\s+(\S+)(?:\s+from\s+(.+))?$/i)){
+        doses.push({v:m[1],amount:m[2],kind:"every",interval:m[3],count:m[4],start:m[5]||null});return;}
+      if(m=line.match(/^dose\s+([A-Za-z_]\w*)\s*=\s*(.+?)\s+at\s+(.+)$/i)){
+        doses.push({v:m[1],amount:m[2],kind:"at",times:m[3].split(",").map(function(s){return s.trim();})});return;}
+      if(m=line.match(/^([A-Za-z_]\w*)\s*=\s*(.+)$/)){
+        var name=m[1], rhs=m[2].trim();
+        var hint=rhs.match(/^(.*?)\s*\[([^\]]+)\]\s*$/);
+        var valPart=rhs, range=null;
+        if(hint){ valPart=hint[1].trim(); range=hint[2]; }
+        if(NUM.test(valPart)){
+          var v=parseFloat(valPart), mn=0, mx=(v>0?v*4:1), st;
+          if(range){ var ps=range.split(":").map(Number); mn=ps[0]; mx=ps[1]; st=ps[2]; }
+          if(!isFinite(st)||st<=0) st=niceStep(mx-mn);
+          params.push({name:name,slider:true,value:v,min:mn,max:mx,step:st});
+        } else {
+          params.push({name:name,slider:false,rhs:valPart});
+        }
+        return;
+      }
+      throw new Error("해석할 수 없는 줄: "+line);
+    });
+    return {params:params,inits:inits,odes:odes,plots:plots,doses:doses,ylabel:ylabel,ylabelR:ylabelR};
+  }
+
+  function simulate(){
+    var tend=parseFloat(document.getElementById("tend").value);
+    var dt=parseFloat(document.getElementById("dt").value);
+    if(!(tend>0)||!(dt>0)) throw new Error("시뮬 시간과 dt는 양수여야 합니다");
+    var nsteps=Math.min(Math.round(tend/dt),300000);
+
+    var scope={};
+    currentModel.params.forEach(function(p){
+      scope[p.name]= p.slider ? liveParams[p.name] : math.evaluate(p.rhs,scope);
+    });
+    var states=currentModel.odes.map(function(o){return o.name;});
+    var y=states.map(function(s){ return (s in currentModel.inits)? math.evaluate(currentModel.inits[s],scope):0; });
+    var comp=currentModel.odes.map(function(o){return math.compile(o.rhs);});
+    var outs=(currentModel.plots.length?currentModel.plots:states.map(function(s){return {expr:s,axis:"left"};}));
+    var outc=outs.map(function(o){return math.compile(o.expr);});
+
+    var ev=Object.assign({},scope);
+    function f(t,yv){ ev.t=t; for(var i=0;i<states.length;i++) ev[states[i]]=yv[i];
+      return comp.map(function(c){return c.evaluate(ev);}); }
+
+    var events=[];
+    currentModel.doses.forEach(function(d){
+      var vi=states.indexOf(d.v);
+      if(vi<0) throw new Error("dose 대상 '"+d.v+"' 가 상태변수(d/dt)에 없습니다");
+      var amt=math.compile(d.amount), times=[];
+      if(d.kind==="every"){
+        var iv=math.evaluate(d.interval,scope), n=Math.round(math.evaluate(d.count,scope));
+        var t0=d.start?math.evaluate(d.start,scope):0;
+        for(var i=0;i<n;i++) times.push(t0+i*iv);
+      } else { d.times.forEach(function(e){ times.push(math.evaluate(e,scope)); }); }
+      times.forEach(function(tt){ events.push({vi:vi,time:tt,amt:amt}); });
+    });
+    events.sort(function(a,b){return a.time-b.time;});
+
+    var p=0;
+    function applyDue(tg){
+      while(p<events.length && events[p].time<=tg+1e-9){
+        var e=events[p]; ev.t=e.time;
+        for(var i=0;i<states.length;i++) ev[states[i]]=y[i];
+        y[e.vi]+=e.amt.evaluate(ev); p++;
+      }
+    }
+
+    var keep=Math.max(1,Math.floor(nsteps/1500));
+    var series=outs.map(function(){return [];});
+    function record(t){ ev.t=t; for(var i=0;i<states.length;i++) ev[states[i]]=y[i];
+      for(var j=0;j<outc.length;j++) series[j].push({x:t,y:outc[j].evaluate(ev)}); }
+
+    applyDue(0); record(0);
+    for(var s=1;s<=nsteps;s++){
+      var t0=(s-1)*dt;
+      var k1=f(t0,y);
+      var y2=y.map(function(v,i){return v+0.5*dt*k1[i];}), k2=f(t0+0.5*dt,y2);
+      var y3=y.map(function(v,i){return v+0.5*dt*k2[i];}), k3=f(t0+0.5*dt,y3);
+      var y4=y.map(function(v,i){return v+dt*k3[i];}), k4=f(t0+dt,y4);
+      y=y.map(function(v,i){return v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]);});
+      var tg=s*dt; applyDue(tg);
+      if(s%keep===0||s===nsteps) record(tg);
+    }
+    return {labels:outs.map(function(o){return o.expr;}),series:series,axes:outs.map(function(o){return o.axis;})};
+  }
+
+  function axisColors(){
+    var dark=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return {tick:dark?"#9b9586":"#6f6a5f", grid:dark?"rgba(155,149,134,0.18)":"rgba(111,106,95,0.14)"};
+  }
+  function ensureChart(){
+    if(chart) return;
+    var ac=axisColors();
+    chart=new Chart(document.getElementById("oc").getContext("2d"),{
+      type:"line", data:{datasets:[]},
+      options:{animation:false,responsive:true,maintainAspectRatio:false,parsing:false,
+        plugins:{legend:{display:true,labels:{boxWidth:14,font:{family:"IBM Plex Sans",size:12},color:ac.tick}}},
+        scales:{
+          x:{type:"linear",title:{display:true,text:"Time (h)",color:ac.tick},grid:{color:ac.grid},ticks:{color:ac.tick}},
+          y:{type:"linear",position:"left",title:{display:true,text:"value",color:ac.tick},grid:{color:ac.grid},ticks:{color:ac.tick}},
+          y2:{type:"linear",position:"right",display:false,title:{display:true,text:"",color:ac.tick},grid:{drawOnChartArea:false,color:ac.grid},ticks:{color:ac.tick}}
+        }}
+    });
+  }
+  function refresh(){ ensureChart(); chart.data.datasets=heldDS.concat(liveDS);
+    var ty=logScale?"logarithmic":"linear";
+    chart.options.scales.y.type=ty; chart.options.scales.y2.type=ty;
+    chart.options.scales.y.title.text=document.getElementById("ylab").value;
+    chart.options.scales.y2.title.text=document.getElementById("ylabR").value;
+    chart.options.scales.y2.display=chart.data.datasets.some(function(d){return d.yAxisID==="y2";});
+    function ar(sc,a,b){ var mn=parseFloat(document.getElementById(a).value), mx=parseFloat(document.getElementById(b).value);
+      if(logScale&&isFinite(mn)&&mn<=0) mn=NaN; sc.min=isFinite(mn)?mn:undefined; sc.max=isFinite(mx)?mx:undefined; }
+    ar(chart.options.scales.y,"ymin","ymax");
+    ar(chart.options.scales.y2,"y2min","y2max");
+    chart.update("none"); }
+  function ok(t){var s=document.getElementById("stat");s.className="stat ok";s.textContent=t;}
+  function err(t){var s=document.getElementById("stat");s.className="stat err";s.textContent="오류: "+t;}
+
+  function runLive(){
+    try{
+      var r=simulate();
+      liveDS=r.labels.map(function(lab,j){return {label:lab,data:r.series[j],
+        borderColor:livePalette[j%livePalette.length],backgroundColor:"transparent",
+        borderWidth:2.5,pointRadius:0,tension:0.12,yAxisID:(r.axes[j]==="right"?"y2":"y")};});
+      refresh(); ok("곡선 갱신됨 (고정 "+heldDS.length+")");
+    }catch(e){ err(e.message); }
+  }
+  function hint(t){var s=document.getElementById("stat");s.className="stat";s.textContent=t;}
+  function build(){
+    try{ currentModel=parse(document.getElementById("eq").value); }
+    catch(e){ err(e.message); return; }
+    liveParams={};
+    if(currentModel.ylabel!=null) document.getElementById("ylab").value=currentModel.ylabel;
+    if(currentModel.ylabelR!=null) document.getElementById("ylabR").value=currentModel.ylabelR;
+    currentModel.params.forEach(function(p){ if(p.slider) liveParams[p.name]=p.value; });
+    heldDS=[]; snapCount=0;
+    renderSliders();
+    if(currentModel.odes.length===0){ liveDS=[]; refresh(); hint("미분식 d/dt(...) 를 1개 이상 입력한 뒤 ▶ Run 을 누르세요."); return; }
+    runLive();
+  }
+  function snapshot(){
+    if(!liveDS.length) return;
+    snapCount++; var c=snapPalette[(snapCount-1)%snapPalette.length];
+    liveDS.forEach(function(d){
+      heldDS.push({label:"고정"+snapCount+(liveDS.length>1?(" · "+d.label):""),
+        data:d.data,borderColor:c,backgroundColor:"transparent",borderWidth:1.5,pointRadius:0,tension:0.12,yAxisID:d.yAxisID});
+    });
+    refresh(); ok("고정됨 ("+heldDS.length+"개)");
+  }
+  function renderSliders(){
+    var box=document.getElementById("sliders"); box.innerHTML=""; var any=false;
+    currentModel.params.forEach(function(p){
+      if(!p.slider) return; any=true;
+      var cell=document.createElement("div"); cell.className="scell";
+      var lab=document.createElement("div"); lab.className="sname"; lab.textContent=p.name;
+      var row=document.createElement("div"); row.className="srow";
+      var inp=document.createElement("input"); inp.type="range";
+      inp.min=p.min; inp.max=p.max; inp.step=p.step; inp.value=liveParams[p.name];
+      var num=document.createElement("input"); num.type="number"; num.className="snum";
+      num.min=p.min; num.max=p.max; num.step="any"; num.value=fmt(liveParams[p.name]);
+      inp.addEventListener("input",function(){ var v=parseFloat(inp.value); liveParams[p.name]=v; num.value=fmt(v); runLive(); });
+      num.addEventListener("input",function(){ var v=parseFloat(num.value); if(isNaN(v)) return;
+        if(v<p.min) v=p.min; if(v>p.max) v=p.max; liveParams[p.name]=v; inp.value=v; runLive(); });
+      num.addEventListener("change",function(){ num.value=fmt(liveParams[p.name]); });
+      row.appendChild(inp); row.appendChild(num);
+      cell.appendChild(lab); cell.appendChild(row); box.appendChild(cell);
+    });
+    if(!any) box.innerHTML='<span style="font-size:13px;color:var(--muted)">슬라이더로 만들 수치 파라미터가 없습니다. 예: <code>ka = 1.0 [0:5]</code></span>';
+  }
+
+  document.getElementById("run").addEventListener("click",build);
+  document.getElementById("snap").addEventListener("click",snapshot);
+  document.getElementById("clr").addEventListener("click",function(){ heldDS=[]; snapCount=0; refresh(); ok("고정 곡선 삭제"); });
+  document.getElementById("logb").addEventListener("click",function(){ logScale=!logScale; this.classList.toggle("on",logScale); refresh(); });
+  document.getElementById("ylab").addEventListener("input",refresh);
+  document.getElementById("ylabR").addEventListener("input",refresh);
+  ["ymin","ymax","y2min","y2max"].forEach(function(id){ document.getElementById(id).addEventListener("input",refresh); });
+
+  var exList=[
+    ["oral1_single","경구 1구획 (단회)"],
+    ["iv1_single","IV bolus 1구획 (단회)"],
+    ["oral1","경구 1구획 (다회)"],
+    ["iv1","IV bolus 1구획 (다회)"],
+    ["iv2","IV 2구획 (다회)"],
+    ["mm","MM 소거 (다회)"],
+    ["inf","정맥주입 (zero-order)"]
+  ];
+  var exsel=document.getElementById("exsel"), expre=document.getElementById("expre"), copymsg=document.getElementById("copymsg");
+  exList.forEach(function(e){ var o=document.createElement("option"); o.value=e[0]; o.textContent=e[1]; exsel.appendChild(o); });
+  function showEx(){ expre.textContent=presets[exsel.value]; }
+  exsel.addEventListener("change",showEx);
+  document.getElementById("copyex").addEventListener("click",function(){
+    var code=presets[exsel.value];
+    function done(){ copymsg.textContent="복사됨 — 편집창에 붙여넣으세요"; setTimeout(function(){copymsg.textContent="";},2000); }
+    function fallback(){ var ta=document.createElement("textarea"); ta.value=code; ta.style.position="fixed"; ta.style.opacity="0";
+      document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(e){} document.body.removeChild(ta); done(); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(code).then(done,fallback); } else fallback();
+  });
+  showEx();
+
+  window.addEventListener("load",build);
+})();
+</script>
+</body>
+</html>
