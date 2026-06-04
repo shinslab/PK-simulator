@@ -242,7 +242,16 @@ footer{margin-top:30px;font-size:12px;color:var(--muted);text-align:center}
   }
   function metricsOf(series,label){
     if(!series||series.length<2) return null;
-    var cmax=-Infinity,tmax=0,auc=0,i,p,q;
+    var i,p,q,peaks=[];
+    for(i=1;i<series.length-1;i++){ if(series[i].y>=series[i-1].y && series[i].y>series[i+1].y) peaks.push(i); }
+    if(peaks.length>=2){
+      var a=peaks[peaks.length-2], b=peaks[peaks.length-1];
+      var cssmax=series[b].y, cssmin=Infinity, aucT=0;
+      for(i=a;i<=b;i++){ if(series[i].y<cssmin) cssmin=series[i].y; if(i>a) aucT+=0.5*(series[i].y+series[i-1].y)*(series[i].x-series[i-1].x); }
+      var tau=series[b].x-series[a].x, cavg=tau>0?aucT/tau:NaN;
+      return {mode:"multi",cssmax:cssmax,cssmin:cssmin,cavg:cavg,label:label};
+    }
+    var cmax=-Infinity,tmax=0,auc=0;
     for(i=0;i<series.length;i++){ p=series[i]; if(p.y>cmax){cmax=p.y;tmax=p.x;} if(i>0){q=series[i-1]; auc+=0.5*(p.y+q.y)*(p.x-q.x);} }
     var xs=[],ys=[];
     for(i=0;i<series.length;i++){ p=series[i]; if(p.x>tmax && p.y>0){ xs.push(p.x); ys.push(Math.log(p.y)); } }
@@ -253,15 +262,20 @@ footer{margin-top:30px;font-size:12px;color:var(--muted);text-align:center}
       var sl=(n*sxy-sx*sy)/(n*sxx-sx*sx);
       if(sl<0) thalf=Math.LN2/(-sl);
     }
-    return {cmax:cmax,tmax:tmax,auc:auc,thalf:thalf,label:label};
+    return {mode:"single",cmax:cmax,tmax:tmax,auc:auc,thalf:thalf,label:label};
   }
   function showMetrics(m){
     var el=document.getElementById("metrics");
     if(!m){ el.innerHTML=""; return; }
     function c(k,v){ return '<span class="mcard">'+k+'<b>'+v+'</b></span>'; }
-    el.innerHTML='<span class="mlabel">모델 기반 ('+m.label+')</span>'
-      + c("Cmax",fmt(m.cmax)) + c("Tmax",fmt(m.tmax)) + c("AUC₀–t",fmt(m.auc))
-      + c("t½", isFinite(m.thalf)?fmt(m.thalf):"–");
+    if(m.mode==="multi"){
+      el.innerHTML='<span class="mlabel">모델 기반 · 마지막 투여구간 ('+m.label+')</span>'
+        + c("Css,max",fmt(m.cssmax)) + c("Css,min",fmt(m.cssmin)) + c("Cavg",isFinite(m.cavg)?fmt(m.cavg):"–");
+    } else {
+      el.innerHTML='<span class="mlabel">모델 기반 ('+m.label+')</span>'
+        + c("Cmax",fmt(m.cmax)) + c("Tmax",fmt(m.tmax)) + c("AUC₀–t",fmt(m.auc))
+        + c("t½", isFinite(m.thalf)?fmt(m.thalf):"–");
+    }
   }
   function renderObsTable(pts){
     var el=document.getElementById("obstable");
